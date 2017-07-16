@@ -77,7 +77,7 @@ cardtest4: cardtest4.c testing_helpers.o dominion.o rngs.o
 
 cardtests: cardtest1 cardtest2 cardtest3 cardtest4
 
-all: playdom player testDrawCard testBuyCard badTestDrawCard cardtests
+all: playdom player testDrawCard testBuyCard badTestDrawCard cardtests unittests unittestresults.out
 
 clean:
 	rm -f *.o playdom.exe playdom player player.exe  *.gcov *.gcda *.gcno *.so *.out badTestDrawCard testDrawCard testDrawCard.exe cardtest1 cardtest2 cardtest3 cardtest4 unittest1 unittest2 unittest3 unittest4
