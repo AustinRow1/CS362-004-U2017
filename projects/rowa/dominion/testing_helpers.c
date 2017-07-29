@@ -102,12 +102,26 @@ void addContextToTracker(char* context, struct StatusTracker* tracker) {
 	tracker->numContexts++;
 }
 
-void assertTrue(int condition, char* description, struct StatusTracker* tracker) {
+int assertTrue(int condition, char* description, struct StatusTracker* tracker) {
 	if(condition) {
 		passTest(tracker, description);
+		return 1;
 	} else {
 		failTest(tracker, description);
+		return 0;
 	}
+}
+
+int assertEqual(char* context, int expected, int actual, struct StatusTracker* tracker) {
+	char buffer[256];
+	sprintf(buffer, "%s, Expected: %d, Actual: %d", context, expected, actual);
+	if(expected == actual) {
+		passTest(tracker, buffer);
+		return 1;
+	} else {
+		failTest(tracker, buffer);
+		return 0;
+	}	
 }	
 
 void failTest(struct StatusTracker* tracker, char* reason)  {
@@ -141,6 +155,37 @@ void printTestResults(struct StatusTracker tracker) {
 			printedContexts++;
 		}
 		_printAssertionResult(tracker, i);
+	}
+
+}
+
+void printFailedTestResults(struct StatusTracker tracker) {
+	int numPassed = 0, printedContexts = 0, i;
+
+	for(i = 0; i < tracker.numTests; i++) {
+		if(tracker._statuses[i] == PASSED) {
+			numPassed++;
+		}
+	}	
+
+	if(tracker._overallStatus == PASSED) {
+		printf("TEST SUCCESSFULLY COMPLETED\nALL TESTS PASSED (%d)\n", tracker.numTests);
+	} else {
+		printf("TEST FAILED\nPassed Assertions: %d\nFailed Assertions: %d\n", numPassed, tracker.numTests - numPassed);
+	}
+
+	for(i = 0; i < tracker.numTests; i++) {
+		if(printedContexts < tracker.numContexts && i == tracker._contextIndexToStatusIndex[printedContexts]) {
+			printf("--SUB TEST %d: %s\n", printedContexts + 1, tracker._contexts[printedContexts]);
+			printedContexts++;
+		}
+
+		if(tracker._statuses[i] == FAILED) {
+			if(printedContexts) {
+				printf("\t");
+			}
+			_printAssertionResult(tracker, i);
+		}
 	}
 
 }
@@ -206,6 +251,152 @@ void initializeTestGame(int numPlayers, const int hands[][MAX_HAND], const int* 
 	//set up random number generator
 	SelectStream(1);
 	PutSeed((long)randomSeed);
+}
+
+//Assumes that seed has already been put
+int randInt(int minInclusive, int maxExclusive) {
+	int diff = maxExclusive - minInclusive;
+
+	return (int)(Random() * diff + minInclusive);	
+}
+
+//NOTE: Assumes seed has already been put
+void initializeRandomState(struct gameState* state) {
+	int i, j, select, kingdomCardsSelected;
+	int kingdomCards[10];
+
+	state->numPlayers = randInt(2, MAX_PLAYERS + 1);
+	state->outpostPlayed = randInt(0, 10) == 9;
+	state->outpostTurn = state->outpostPlayed && randInt(0, 2);
+	state->phase = randInt(0, 2); //There is no specific function(s) for cleanup phase so I don't allow it to be an option here
+	state->numActions = randInt(0, 2);
+	state->coins = 0; //set this later after hand is decided
+	if(state->phase == 0) {
+		state->numBuys = 1;
+	} else {
+		state->numBuys = randInt(0, 3);
+	}
+
+	state->playedCardCount = 0;	//not sure what to do about this yet
+	state->whoseTurn = randInt(0, state->numPlayers);
+
+	if (state->numPlayers == 2) {
+		state->supplyCount[curse] = 10;
+	} else if (state->numPlayers == 3) {
+		state->supplyCount[curse] = 20;
+	} else {
+		state->supplyCount[curse] = 30;
+	}
+
+	//set number of Victory cards
+	if (state->numPlayers == 2) {
+		state->supplyCount[estate] = 8;
+		state->supplyCount[duchy] = 8;
+		state->supplyCount[province] = 8;
+	} else {
+		state->supplyCount[estate] = 12;
+		state->supplyCount[duchy] = 12;
+		state->supplyCount[province] = 12;
+	}
+
+	//set number of Treasure cards
+	state->supplyCount[copper] = 60 - (7 * state->numPlayers);
+	state->supplyCount[silver] = 40;
+	state->supplyCount[gold] = 30;
+
+	kingdomCardsSelected = 0;
+	while(kingdomCardsSelected < 10) {
+		for(i = adventurer; i <= treasure_map; i++) {
+			select = randInt(0, treasure_map - adventurer) == 0;
+			if(select && kingdomCardsSelected < 10) {
+				for(j = 0; j < kingdomCardsSelected; j++) {
+					if(kingdomCards[j] == i) {
+						select = 0;
+						break;
+					}
+				}	
+
+				if(select) {
+					kingdomCards[kingdomCardsSelected] = i;
+					kingdomCardsSelected++;
+				}
+			}
+		}
+	}
+	
+	for (i = adventurer; i <= treasure_map; i++) {
+		for (j = 0; j < 10; j++) {
+			if (kingdomCards[j] == i) {
+				if (kingdomCards[j] == great_hall || kingdomCards[j] == gardens) {
+					if (state->numPlayers == 2) {
+						state->supplyCount[i] = randInt(0, 9);
+					} else { 
+						state->supplyCount[i] = randInt(0, 13);
+					}
+				} else {
+					state->supplyCount[i] = randInt(0, 11);
+				}
+				break;
+			} else {
+				state->supplyCount[i] = -1;
+			}
+		}
+	}
+
+	for(i = 0; i <= treasure_map + 1; i++) {
+		if(randInt(0, 50) == 0) {
+			state->embargoTokens[i] = randInt(1, 3);
+		}
+	}
+
+	//set players' hands and decks and clear everything else
+	for(i = 0; i < MAX_PLAYERS; i++) {
+		memset(state->hand[i], 0, sizeof(int) * MAX_HAND);
+		memset(state->deck[i], 0, sizeof(int) * MAX_DECK);
+		memset(state->discard[i], 0, sizeof(int) * MAX_DECK);
+	}	
+
+	memset(state->handCount, 0, sizeof(int) * MAX_PLAYERS);
+	memset(state->deckCount, 0, sizeof(int) * MAX_PLAYERS);
+	memset(state->discardCount, 0, sizeof(int) * MAX_PLAYERS);
+	memset(state->playedCards, 0, sizeof(int) * MAX_DECK);
+	memset(state->supplyCount, 0, sizeof(int) * treasure_map);
+	memset(state->embargoTokens, 0, sizeof(int) * treasure_map);
+
+
+	for(i = 0; i < state->numPlayers; i++) {
+		if(i == state->whoseTurn) {
+			state->handCount[i] = randInt(2, 6);
+		} else {
+			state->handCount[i] = 5;
+		}
+
+		for(j = 0; j < state->handCount[i]; j++) {
+			state->hand[i][j] = randInt(0, treasure_map + 1);
+			if(state->hand[i][j] > gold) {
+				state->hand[i][j] = kingdomCards[randInt(0, 10)];
+			}
+			if(i == state->whoseTurn && treasure(state->hand[i][j])) {
+				state->coins++;	
+			}	
+		}
+
+		state->deckCount[i] = randInt(0, MAX_DECK - state->handCount[i] + 1);
+		for(j = 0; j < state->deckCount[i]; j++) {
+			state->deck[i][j] = randInt(0, treasure_map + 1);
+			if(state->deck[i][j] > gold) {
+				state->deck[i][j] = kingdomCards[randInt(0, 10)];
+			}
+		}
+
+		state->discardCount[i] = randInt(0, MAX_DECK - state->deckCount[i] + 1);
+		for(j = 0; j < state->discardCount[i]; j++) {
+			state->discard[i][j] = randInt(0, treasure_map + 1);
+			if(state->discard[i][j] > gold) {
+				state->discard[i][j] = kingdomCards[randInt(0, 10)];
+			}
+		}
+	}	
 }
 
 int numCardIn(const int card, const int* collection, const int size) {
@@ -308,6 +499,17 @@ int treasureInHand(struct gameState state, int player) {
 	return found;
 }
 
+int treasureInDeck(struct gameState state, int player) {
+	int found = 0, i;
+
+	for(i = 0; i < state.deckCount[player]; i++) {
+		if(treasure(state.deck[player][i])) {
+			found++;
+		}
+	}	
+
+	return found;
+}
 int treasure(int card) {
 	return card >= copper && card <= gold;
 }
