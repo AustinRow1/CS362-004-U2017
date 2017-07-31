@@ -1,0 +1,42 @@
+Assignment 5 Bug Report
+-----------------------
+
+Note: Since we don't version our changes, I will be using the fork URL and branch name 
+	  for the "software version" in the reports.
+Severity/Priority Scale (Highest to Lowest): Critical, High, Medium, Low
+
+
+Bug #1: 			Smithy Draws Four
+Summary: 			When the Smithy card is played, it results in the player drawing four 
+					cards from their deck rather than the expected three.
+Steps to Reproduce: 
+					1) Put game into state where current player has a turn remaining
+					   in action phase with Smithy card in hand.
+					2) Play Smithy card.
+
+					   Expected Result: Player draws three cards from deck to hand.
+					   Actual Result: Player draws four cards from deck to hand.
+Software Version:	Fork URL: https://github.com/beeryt/CS362-004-U2017
+					Branch: beeryt-assignment-2
+Severity: 			High (does not crash, but affects core game experience)
+Priority: 			High
+
+----------------------------------------------------------------------------------------
+
+Bug #2:				Smithy Fails to Discard
+Summary: 			When the Smithy card is played, it fails to get discarded and
+					remains in the player's hand after the turn.
+Steps to Reproduce: 
+					1) Put game into state where current player has a turn remaining
+					   in action phase with Smithy card in hand.
+					2) Play Smithy card.
+
+					   Expected Result: Smithy is added to discard pile and removed
+					   from player's hand.
+					   Actual Result: Discard pile is unaffected and Smithy remains in
+					   player's hand.
+Software Version:	Fork URL: https://github.com/beeryt/CS362-004-U2017
+					Branch: beeryt-assignment-2
+Severity: 			High (does not crash, but affects core game experience)
+Priority: 			High
+
