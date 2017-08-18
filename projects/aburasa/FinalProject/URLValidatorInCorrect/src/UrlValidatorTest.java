@@ -29,8 +29,12 @@ import junit.framework.TestCase;
  */
 public class UrlValidatorTest extends TestCase {
 
-   private boolean printStatus = false;
-   private boolean printIndex = false;//print index that indicates current scheme,host,port,path, query test were using.
+   private boolean printSuccesses = false;
+   private boolean printFailures = true;
+   private boolean displayManualTestResults = true;
+   private boolean displayFirstPartitionTestResults = false;
+   private boolean displaySecondPartitionTestResults = false;
+   private boolean displayTestIsValidResults = true;
    UrlValidator urlVal;
    
    public UrlValidatorTest(String testName) {
@@ -38,7 +42,7 @@ public class UrlValidatorTest extends TestCase {
       urlVal = new UrlValidator(null, null, UrlValidator.ALLOW_ALL_SCHEMES);
    }
 
-   private String testURL(ResultPair urlPair, UrlValidator validator) {
+   private void testURL(ResultPair urlPair, UrlValidator validator) {
 	   String status = "";
 	   String url = urlPair.item;
 	   Boolean expectedValidity = urlPair.valid;
@@ -49,41 +53,60 @@ public class UrlValidatorTest extends TestCase {
 		   status = "PASSED: ";
 	   }
 	   
-	   return String.join("", status, url, ", expected: ", Boolean.toString(expectedValidity), ", actual: ", Boolean.toString(result));
+	   if((printFailures && expectedValidity != result) || (printSuccesses && expectedValidity == result)) {
+		   System.out.println(String.join("", status, url, ", expected: ", Boolean.toString(expectedValidity), ", actual: ", Boolean.toString(result)));
+	   }
    }
    
    public void testManualTest() {
+	   if(!displayManualTestResults) {
+		   return;
+	   }
 	   System.out.println("---testManualTest---");
 	   for(int i = 0; i < manualFullUrls.length; i++) {
-		   System.out.println(testURL(manualFullUrls[i], urlVal));
+		   testURL(manualFullUrls[i], urlVal);
 	   }
 	   System.out.println("-----------------------------------------------------------------");
    }
    
    
    public void testYourFirstPartition() {
+	   if(!displayFirstPartitionTestResults) {
+		   return;
+	   }
+	   
 	   System.out.println("---testYourFirstPartition---");
 	   for(int i = 0; i < firstPartition.length; i++) {
-		   System.out.println(testURL(firstPartition[i], urlVal));
+		   testURL(firstPartition[i], urlVal);
 	   }
 	   System.out.println("-----------------------------------------------------------------");
    }
    
    public void testYourSecondPartition() {
+	   if(!displaySecondPartitionTestResults) {
+		   return;
+	   }
+	   
 	   System.out.println("---testYourSecondPartition---");
 	   for(int i = 0; i < secondPartition.length; i++) {
-		   System.out.println(testURL(secondPartition[i], urlVal));
+		   testURL(secondPartition[i], urlVal);
 	   }
 	   System.out.println("-----------------------------------------------------------------");
    }
    
    private void debugAssertEquals (String item, Boolean expected, Boolean actual) {
-	   if(expected != actual) {
+	   if(expected != actual && printFailures) {
 		   System.out.println(String.join("", "***Error: ", item, ", expected=", Boolean.toString(expected), ", actual=", Boolean.toString(actual)));
+	   } else if(expected == actual && printSuccesses) {
+		   System.out.println(String.join("", "PASSED: ", item, ", expected=", Boolean.toString(expected), ", actual=", Boolean.toString(actual)));
 	   }
    }
    
    public void testIsValid() {
+	   if(!displayTestIsValidResults) {
+		   return;
+	   }
+	   
 	   String url;
 	   Boolean expectedValidity;
 	   int totalPermutations = 0;
@@ -102,10 +125,8 @@ public class UrlValidatorTest extends TestCase {
 		   } else {
 			   cachedDivisors[i] = 0;
 		   }
-		   //System.out.println(String.join("", "divisors[", Integer.toString(i), "] = ", Integer.toString(divisors[i])));
 	   }
 	   
-	   //System.out.println("Total permutations: " + Integer.toString(totalPermutations));
 	   System.out.println("---testIsValid---");
 	   for(int permutation = 0; permutation < totalPermutations; permutation++) {
 		   url = "";
@@ -118,7 +139,6 @@ public class UrlValidatorTest extends TestCase {
 			   }
 	       }
 		   debugAssertEquals(url, expectedValidity, urlVal.isValid(url));
-		   //System.out.println(testURL(new ResultPair(url, expectedValidity), urlVal));
    	   }
 	   System.out.println("-----------------------------------------------------------------");
 	   
@@ -145,23 +165,33 @@ public class UrlValidatorTest extends TestCase {
    ResultPair[] testUrlAuthorities = {
 	   new ResultPair("google.com", true),
 	   new ResultPair("amazon.com", true),
-	   new ResultPair("", false)
+	   new ResultPair("", false),
+	   new ResultPair("255.255.255.255", true),
+       new ResultPair("256.256.256.256", false),
+       new ResultPair("255.com", true)
    };
    
    ResultPair[] testUrlPorts = {
 	   new ResultPair(":-1", false),
 	   new ResultPair("", true),
 	   new ResultPair(":80", true),
-	   new ResultPair(":80b", false)
+	   new ResultPair(":80b", false),
+	   new ResultPair(":9999", true),
+	   new ResultPair(":999", true),
    };
    
    ResultPair[] testUrlPaths = {
 	   new ResultPair("", true),
+	   new ResultPair("/test1", true),
+	   new ResultPair("/..//file", false),
+       new ResultPair("/test1//file", true),
+       new ResultPair("/..//file", false)
    };
    
    ResultPair[] testUrlQueries = {
-		   new ResultPair("?action=view", true),
-		   new ResultPair("", true)
+		   new ResultPair("/?action=view", true),
+		   new ResultPair("", true),
+		   new ResultPair("/?search=banana", false),
    };
    
    ResultPair[][] testUrlComponents = {
@@ -175,6 +205,7 @@ public class UrlValidatorTest extends TestCase {
    //Any URLs listed here will be tested manually.
    ResultPair[] manualFullUrls = {
       new ResultPair("http://google.com", true),
+	  new ResultPair("http://256.255.255.255", false),
       new ResultPair("https://google.com", true),
       new ResultPair("http://///////google.com", false),
       new ResultPair("http://amazon.com", true),
